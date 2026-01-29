@@ -35,7 +35,7 @@ else
             <InputSelect class="form-select" @bind-Value="vm.ModelId">
                 @foreach (var m in models)
                 {
-                    <option value="@m.Id">@m.Brand.Name - @m.Name</option>
+                    <option value="@m.Id">@m.Brand!.Name - @m.Name</option>
                 }
             </InputSelect>
         </div>

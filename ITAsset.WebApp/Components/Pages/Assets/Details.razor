@@ -1,0 +1,264 @@
+﻿@page "/Assets/Details/{AssetId:int}"
+@using ITAsset.Domain.Entities
+@using ITAsset.Domain.Interfaces
+@using ITAsset.WebApp.ViewModels
+
+@inject IAssetService AssetService
+@inject IPcComponentService PcComponentService
+
+<h3>جزئیات تجهیز</h3>
+
+@if (asset == null)
+{
+    <p>در حال بارگذاری...</p>
+}
+else
+{
+    <div class="mb-3">
+        <strong>IT Code:</strong> @asset.ITCode
+        <br />
+        <strong>کد اموال:</strong> @asset.AssetCode
+        <br />
+        <strong>مدل:</strong> @asset.!Model.Brand.Name - @asset.!Model.Name
+        <br />
+        <strong>وضعیت:</strong> @asset.Status
+        <br />
+        <strong>مکان:</strong> @asset.Location
+    </div>
+
+    <h5>قطعات کیس</h5>
+    <button class="btn btn-success mb-2" @onclick="OpenInstallModal">
+        ➕ نصب قطعه
+    </button>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert alert-info">@message</div>
+    }
+
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>نوع قطعه</th>
+                <th>IT Code</th>
+                <th>برند</th>
+                <th>مدل</th>
+                <th>Serial</th>
+                <th>عملیات</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var comp in components)
+            {
+                <tr>
+                    <td>@comp.ComponentType</td>
+                    <td>@comp.ITCode</td>
+                    <td>@comp.Brand</td>
+                    <td>@comp.Model</td>
+                    <td>@comp.SerialNumber</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm"
+                                @onclick="() => OpenRemoveModal(removeComponentId, removeComponentName)">
+                            ❌ حذف
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<!-- مودال نصب قطعه -->
+@if (showInstallModal)
+{
+    <div class="modal fade show d-block">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">نصب قطعه جدید</h5>
+                    <button class="btn-close" @onclick="CloseInstallModal"></button>
+                </div>
+
+                <EditForm Model="componentVm" OnValidSubmit="InstallComponent">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body row">
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">نوع قطعه</label>
+                            <InputText class="form-control"
+                                       @bind-Value="componentVm.ComponentType" />
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">کد IT</label>
+                            <InputText class="form-control"
+                                       @bind-Value="componentVm.ITCode" />
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">برند</label>
+                            <InputText class="form-control"
+                                       @bind-Value="componentVm.Brand" />
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">مدل</label>
+                            <InputText class="form-control"
+                                       @bind-Value="componentVm.Model" />
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Serial</label>
+                            <InputText class="form-control"
+                                       @bind-Value="componentVm.SerialNumber" />
+                        </div>
+
+                        <div class="col-12 mb-3">
+                            <label class="form-label">مشخصات (JSON / متن آزاد)</label>
+                            <InputTextArea class="form-control"
+                                           @bind-Value="componentVm.Specifications" />
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary"
+                                type="button"
+                                @onclick="CloseInstallModal">انصراف</button>
+                        <button class="btn btn-primary" type="submit">ثبت</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- مودال حذف قطعه -->
+@if (showRemoveModal)
+{
+    <div class="modal fade show d-block">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">تایید حذف قطعه</h5>
+                    <button class="btn-close" @onclick="CloseRemoveModal"></button>
+                </div>
+                <div class="modal-body">
+                    آیا مطمئن هستید که قطعه <strong>@removeComponentName</strong> حذف شود؟
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseRemoveModal">انصراف</button>
+                    <button class="btn btn-danger" @onclick="RemoveComponent">حذف</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    [Parameter] public int AssetId { get; set; }
+
+    private Asset? asset;
+    private List<PcComponent> components = new();
+    private string? message;
+
+    // نصب قطعه
+    private bool showInstallModal = false;
+    private PcComponentCreateVm componentVm = new();
+
+    // حذف قطعه
+    private bool showRemoveModal = false;
+    private int removeComponentId;
+    private string removeComponentName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsset();
+    }
+
+    private async Task LoadAsset()
+    {
+        var result = await AssetService.GetByIdAsync(AssetId);
+        if (result.IsSuccess)
+        {
+            asset = result.Data;
+            components = asset?.PcComponents.ToList() ?? new List<PcComponent>();
+        }
+        else
+        {
+            message = result.Message;
+        }
+    }
+
+    // --- نصب قطعه ---
+    void OpenInstallModal()
+    {
+        componentVm = new PcComponentCreateVm
+        {
+            ParentAssetId = asset!.Id
+        };
+        showInstallModal = true;
+    }
+
+    void CloseInstallModal() => showInstallModal = false;
+
+    private async Task InstallComponent()
+    {
+        var entity = new PcComponent
+        {
+            ParentAssetId = componentVm.ParentAssetId,
+            ComponentType = componentVm.ComponentType,
+            ITCode = componentVm.ITCode,
+            Brand = componentVm.Brand,
+            Model = componentVm.Model,
+            SerialNumber = componentVm.SerialNumber,
+            Specifications = componentVm.Specifications
+        };
+
+        var result = await PcComponentService.AddAsync(entity, userId: 1);
+
+        if (result.IsSuccess)
+        {
+            components.Add(result.Data!);
+            showInstallModal = false;
+            message = "قطعه با موفقیت نصب شد";
+        }
+        else
+        {
+            message = result.Message;
+        }
+    }
+
+    // --- حذف قطعه ---
+    void OpenRemoveModal(int id, string name)
+    {
+        removeComponentId = id;
+        removeComponentName = name;
+        showRemoveModal = true;
+    }
+
+    void CloseRemoveModal() => showRemoveModal = false;
+
+    private async Task RemoveComponent()
+    {
+        var result = await PcComponentService.RemoveAsync(removeComponentId, userId: 1);
+
+        if (result.IsSuccess)
+        {
+            var compToRemove = components.FirstOrDefault(c => c.Id == removeComponentId);
+            if (compToRemove != null)
+                components.Remove(compToRemove);
+
+            showRemoveModal = false;
+            message = "قطعه با موفقیت حذف شد";
+        }
+        else
+        {
+            message = result.Message;
+        }
+    }
+}

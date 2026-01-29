@@ -94,7 +94,7 @@ public class AssetService : IAssetService
         // اگر ITCode تغییر کرده، بررسی یکتا بودن
         if (existing.ITCode !=asset.ITCode)
         {
-            var itCodeChech = await IsITCodeExistsAsync(asset.ITCode);
+            var itCodeChech = await IsITCodeExistsAsync(asset.ITCode!);
             if(itCodeChech.Data==true)
                 return ResultModel<Asset>.Fail("این ITCode قبلاً ثبت شده است.");
         }

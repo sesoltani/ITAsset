@@ -34,6 +34,7 @@ public class PcComponentService : IPcComponentService
             return ResultModel<PcComponent>.Fail("این ITCode قبلاً استفاده شده است");
 
         _context.PcComponents.Add(component);
+        await _context.SaveChangesAsync(); // اول ذخیره
 
         // ثبت لاگ نصب
         _context.PcComponentChanges.Add(new PcComponentChange
@@ -106,6 +107,14 @@ public class PcComponentService : IPcComponentService
             .FindAsync(oldComponentId);
         if(oldComponent==null)
             return ResultModel<PcComponent>.Fail("قطعه قبلی یافت نشد");
+
+        bool itCodeExist =
+            await _context.Assets.AnyAsync(a => a.ITCode == newComponent.ITCode) ||
+            await _context.PcComponents.AnyAsync(c =>
+                c.ITCode == newComponent.ITCode && c.Id != oldComponent.Id);
+
+        if (itCodeExist)
+            return ResultModel<PcComponent>.Fail("این ITCode قبلاً استفاده شده است");
 
         string oldInfo = JsonSerializer.Serialize(oldComponent);
 
