@@ -18,21 +18,27 @@ public class PcComponentService : IPcComponentService
         _context = context;
         _assetService = assetService;
     }
+
+    private async Task<bool> IsITCodeExistsAsync(string itCode, int? ignoreComponentId = null)
+    {
+        return
+            await _context.Assets.AnyAsync(a => a.ITCode == itCode) ||
+            await _context.PcComponents.AnyAsync(c =>
+                c.ITCode == itCode && (!ignoreComponentId.HasValue || c.Id != ignoreComponentId));
+    }
+
     public async Task<ResultModel<PcComponent>> AddAsync(PcComponent component, int userId)
     {
         // چک Asset
         var assetResult = await _assetService.GetByIdAsync(component.ParentAssetId);
-        if(!assetResult.IsSuccess)
+        if (!assetResult.IsSuccess)
             return ResultModel<PcComponent>.Fail("کیس مقصد وجود ندارد");
 
-        // چک ITCode مشترک
-        bool itCodeExist =
-            await _context.Assets.AnyAsync(a => a.ITCode == component.ITCode) ||
-            await _context.PcComponents.AnyAsync(c => c.ITCode == component.ITCode);
-
-        if (itCodeExist)
+        if (await IsITCodeExistsAsync(component.ITCode!))
             return ResultModel<PcComponent>.Fail("این ITCode قبلاً استفاده شده است");
 
+        using var tx = await _context.Database.BeginTransactionAsync();
+       
         _context.PcComponents.Add(component);
         await _context.SaveChangesAsync(); // اول ذخیره
 
@@ -47,6 +53,7 @@ public class PcComponentService : IPcComponentService
         });
 
         await _context.SaveChangesAsync();
+        await tx.CommitAsync();
         return ResultModel<PcComponent>.Success(component, "قطعه با موفقیت نصب شد");
     }
 
@@ -64,7 +71,7 @@ public class PcComponentService : IPcComponentService
         var component = await _context.PcComponents
             .Include(c => c.PcComponentChanges)
             .FirstOrDefaultAsync(a => a.Id == id);
-        if(component==null) return ResultModel<PcComponent>.Fail("قطعه یافت نشد");
+        if (component == null) return ResultModel<PcComponent>.Fail("قطعه یافت نشد");
 
         return ResultModel<PcComponent>.Success(component);
     }
@@ -73,7 +80,7 @@ public class PcComponentService : IPcComponentService
     {
         var component = await _context.PcComponents
             .FirstOrDefaultAsync(a => a.ITCode == itCode);
-        if(component==null)return ResultModel<PcComponent>.Fail("قطعه یافت نشد");
+        if (component == null) return ResultModel<PcComponent>.Fail("قطعه یافت نشد");
 
         return ResultModel<PcComponent>.Success(component);
     }
@@ -81,8 +88,11 @@ public class PcComponentService : IPcComponentService
     public async Task<ResultModel<bool>> RemoveAsync(int componentId, int userId)
     {
         var component = await _context.PcComponents.FindAsync(componentId);
-        if(component==null)
+        if (component == null)
             return ResultModel<bool>.Fail("قطعه یافت نشد");
+
+        // شروع Transaction برای اطمینان از انجام اتمیک عملیات‌ها (یا همه یا هیچ)
+        using var tx = await _context.Database.BeginTransactionAsync();
 
         _context.PcComponents.Remove(component);
 
@@ -97,6 +107,9 @@ public class PcComponentService : IPcComponentService
 
         await _context.SaveChangesAsync();
 
+        // نهایی‌سازی Transaction؛ اعمال تمام تغییرات در دیتابیس
+        await tx.CommitAsync();
+
         return ResultModel<bool>.Success(true, "قطعه حذف شد");
 
     }
@@ -105,16 +118,15 @@ public class PcComponentService : IPcComponentService
     {
         var oldComponent = await _context.PcComponents
             .FindAsync(oldComponentId);
-        if(oldComponent==null)
+        if (oldComponent == null)
             return ResultModel<PcComponent>.Fail("قطعه قبلی یافت نشد");
 
-        bool itCodeExist =
-            await _context.Assets.AnyAsync(a => a.ITCode == newComponent.ITCode) ||
-            await _context.PcComponents.AnyAsync(c =>
-                c.ITCode == newComponent.ITCode && c.Id != oldComponent.Id);
-
-        if (itCodeExist)
+        if (await IsITCodeExistsAsync(newComponent.ITCode!, oldComponent.Id))
             return ResultModel<PcComponent>.Fail("این ITCode قبلاً استفاده شده است");
+
+        newComponent.ParentAssetId = oldComponent.ParentAssetId;
+
+        using var tx = await _context.Database.BeginTransactionAsync();
 
         string oldInfo = JsonSerializer.Serialize(oldComponent);
 
@@ -131,7 +143,10 @@ public class PcComponentService : IPcComponentService
         });
 
         await _context.SaveChangesAsync();
+        await tx.CommitAsync();
 
         return ResultModel<PcComponent>.Success(newComponent, "تعویض قطعه انجام شد");
     }
+
+
 }

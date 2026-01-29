@@ -22,6 +22,7 @@ builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IPcComponentService, PcComponentService>();
 builder.Services.AddScoped<ILocationService, LocationService>();
 builder.Services.AddScoped<IModelService, ModelService>();
+builder.Services.AddScoped<IPcComponentHistoryService, PcComponentHistoryService>();
 
 var app = builder.Build();
 
