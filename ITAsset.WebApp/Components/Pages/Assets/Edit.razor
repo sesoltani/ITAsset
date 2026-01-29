@@ -1,0 +1,125 @@
+﻿@page "/Assets/Edit/{Id:int}"
+@using ITAsset.Domain.Entities
+@using ITAsset.Domain.Interfaces
+@using ITAsset.WebApp.ViewModels
+
+@inject IAssetService AssetService
+@inject IModelService ModelService
+@inject ILocationService LocationService
+@inject NavigationManager Nav
+
+<h3>ویرایش تجهیز</h3>
+
+@if (vm == null)
+{
+    <p>در حال بارگذاری...</p>
+}
+else
+{
+    <EditForm Model="vm" OnValidSubmit="Save">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label>کد اموال</label>
+            <InputText class="form-control" @bind-Value="vm.AssetCode" />
+        </div>
+
+        <div class="mb-3">
+            <label>کد IT</label>
+            <InputText class="form-control" @bind-Value="vm.ITCode" />
+        </div>
+
+        <div class="mb-3">
+            <label>مدل</label>
+            <InputSelect class="form-select" @bind-Value="vm.ModelId">
+                @foreach (var m in models)
+                {
+                    <option value="@m.Id">@m.Brand.Name - @m.Name</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label>مکان</label>
+            <InputSelect class="form-select" @bind-Value="vm.LocationId">
+                @foreach (var l in locations)
+                {
+                    <option value="@l.Id">@l.Name</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label>وضعیت</label>
+            <InputSelect class="form-select" @bind-Value="vm.Status">
+                @foreach (AssetStatus s in Enum.GetValues(typeof(AssetStatus)))
+                {
+                    <option value="@s">@s</option>
+                }
+            </InputSelect>
+        </div>
+
+        <button class="btn btn-success">ذخیره</button>
+        <button class="btn btn-secondary ms-2"
+                @onclick="() => Nav.NavigateTo("/Assets")">
+            بازگشت
+        </button>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private AssetCreateVm? vm;
+    private List<Location> locations = new();
+    private List<Model> models = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        locations = (await LocationService.GetAllAsync()).Data ?? new();
+        models = (await ModelService.GetAllAsync()).Data ?? new();
+
+        var result = await AssetService.GetByIdAsync(Id);
+        if (!result.IsSuccess) return;
+
+        var a = result.Data!;
+        vm = new AssetCreateVm
+        {
+            AssetCode = a.AssetCode,
+            ITCode = a.ITCode,
+            ModelId = a.ModelId,
+            LocationId = a.LocationId,
+            Status = a.Status,
+            SerialNumber = a.SerialNumber,
+            PurchaseDate = a.PurchaseDate,
+            PurchasePrice = a.PurchasePrice,
+            WarrantyExpiryDate = a.WarrantyExpiryDate,
+            Notes = a.Notes
+        };
+
+    }
+
+    async Task Save()
+    {
+        var asset = new Asset
+        {
+            Id = Id,
+            AssetCode = vm!.AssetCode,
+            ITCode = vm.ITCode,
+            ModelId = vm.ModelId,
+            LocationId = vm.LocationId,
+            Status = vm.Status,
+            SerialNumber = vm.SerialNumber,
+            PurchaseDate = vm.PurchaseDate,
+            PurchasePrice = vm.PurchasePrice,
+            WarrantyExpiryDate = vm.WarrantyExpiryDate,
+            Notes = vm.Notes
+        };
+
+        var result = await AssetService.UpdateAsync(asset);
+        if(result.IsSuccess)
+            Nav.NavigateTo("/Assets");
+    }
+
+}

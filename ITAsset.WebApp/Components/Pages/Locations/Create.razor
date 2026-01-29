@@ -1,0 +1,64 @@
+﻿@page "/locations/create"
+
+@inject ILocationService LocationService
+@using ITAsset.Domain.Entities
+@using ITAsset.Domain.Interfaces
+
+<h3>ثبت مکان جدید</h3>
+
+<EditForm Model="location" OnValidSubmit="Save">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">نام مکان</label>
+        <InputText class="form-control" @bind-Value="location.Name" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">مکان والد</label>
+        <InputSelect class="form-select" @bind-Value="location.ParentLocationId">
+            <option value="0">— بدون والد —</option>
+            @foreach (var loc in locations)
+            {
+                <option value="@loc.Id">@loc.Name</option>
+            }
+        </InputSelect>
+    </div>
+
+    <button type="submit" class="btn btn-primary">ذخیره</button>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-info mt-3">@message</div>
+}
+
+@code {
+    private Location location = new();
+    private List<Location> locations = new();
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await LocationService.GetAllAsync();
+
+        if (result.IsSuccess && result.Data != null)
+            locations = result.Data;
+    }
+
+    private async Task Save()
+    {
+        var result = await LocationService.AddAsync(location);
+
+        if (result.IsSuccess)
+        {
+            message = result.Message;
+            location = new Location();
+        }
+        else
+        {
+            message = result.Message;
+        }
+    }
+}

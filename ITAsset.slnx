@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="ITAsset.CoreBusiness/ITAsset.Domain.csproj" />
+  <Project Path="ITAsset.Infrastructure/ITAsset.Data.csproj" Id="9a72ac36-ccf3-4891-8b93-608016dc19ca" />
+  <Project Path="ITAsset.WebApp/ITAsset.WebApp.csproj" />
+</Solution>

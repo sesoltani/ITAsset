@@ -1,0 +1,62 @@
+﻿@page "/Assets"
+@using ITAsset.Domain.Entities
+@using ITAsset.Domain.Interfaces
+
+@inject IAssetService AssetService
+@inject NavigationManager Nav
+
+<h3>لیست تجهیزات</h3>
+
+@if (assets == null)
+{
+    <p>در حال بارگذاری...</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>کد اموال</th>
+                <th>کد IT</th>
+                <th>مدل</th>
+                <th>مکان</th>
+                <th>وضعیت</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var a in assets)
+            {
+                <tr>
+                    <td>@a.AssetCode</td>
+                    <td>@a.ITCode</td>
+                    <td>@a.Model?.Brand?.Name - @a.Model?.Name</td>
+                    <td>@a.Location?.Name</td>
+                    <td>@a.Status</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning"
+                                @onclick="() => Edit(a.Id)">
+                            ویرایش
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Asset>? assets;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await AssetService.GetAllAsync();
+        assets = result.Data;
+    }
+
+    void Edit(int id)
+    {
+        Nav.NavigateTo($"/Assets/Edit/{id}");
+    }
+
+}

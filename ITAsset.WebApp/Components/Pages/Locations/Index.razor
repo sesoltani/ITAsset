@@ -1,0 +1,57 @@
+﻿@page "/locations"
+@using ITAsset.Domain.Interfaces
+
+@inject ILocationService LocationService
+@using ITAsset.Domain.Entities
+
+
+<h3>لیست مکان‌ها</h3>
+
+<a class="btn btn-success mb-3" href="/Locations/Create">
+    ثبت مکان جدید
+</a>
+
+@if (locations == null)
+{
+    <p>در حال بارگذاری...</p>
+}
+else if (!locations.Any())
+{
+    <div class="alert alert-warning">هیچ مکانی ثبت نشده است</div>
+}
+else
+{
+    <table class="table table-bordered">
+        <thead>
+        <tr>
+            <th>نام</th>
+            <th>مکان والد</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var loc in locations)
+        {
+            <tr>
+                <td>@loc.Name</td>
+                <td>@loc.ParentLocation?.Name</td>
+
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Location>? locations;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await LocationService.GetAllAsync();
+
+        if (result.IsSuccess && result.Data != null)
+            locations = result.Data;
+        else
+            locations = new();
+    }
+
+}

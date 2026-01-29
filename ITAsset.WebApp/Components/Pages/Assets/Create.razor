@@ -1,0 +1,112 @@
+﻿@page "/Assets/Create"
+@using ITAsset.Domain.Entities
+@using ITAsset.Domain.Interfaces
+@using ITAsset.WebApp.ViewModels
+
+@inject IAssetService AssetService
+@inject ILocationService LocationService
+@inject IModelService ModelService
+
+<h3>ثبت تجهیز جدید</h3>
+
+<EditForm Model="vm" OnValidSubmit="Save">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <!-- AssetCode -->
+    <div class="mb-3">
+        <label class="form-label">کد اموال</label>
+        <InputText class="form-control" @bind-Value="vm.AssetCode" />
+    </div>
+
+    <!-- ITCode -->
+    <div class="mb-3">
+        <label class="form-label">کد IT</label>
+        <InputText class="form-control" @bind-Value="vm.ITCode" />
+    </div>
+
+    <!-- مدل دستگاه -->
+    <div class="mb-3">
+        <label class="form-label">مدل دستگاه</label>
+        <InputSelect class="form-select" @bind-Value="vm.ModelId">
+            <option value="0">انتخاب مدل</option>
+            @foreach (var m in models)
+            {
+                <option value="@m.Id">@m.!Brand.Name - @m.Name</option>
+            }
+        </InputSelect>
+    </div>
+
+    <!-- مکان استقرار -->
+    <div class="mb-3">
+        <label class="form-label">مکان استقرار</label>
+        <InputSelect class="form-select" @bind-Value="vm.LocationId">
+            <option value="0">انتخاب مکان</option>
+            @foreach (var loc in locations)
+            {
+                <option value="@loc.Id">@loc.Name</option>
+            }
+        </InputSelect>
+    </div>
+
+    <!-- وضعیت -->
+    <div class="mb-3">
+        <label class="form-label">وضعیت</label>
+        <InputSelect class="form-select" @bind-Value="vm.Status">
+            @foreach (AssetStatus status in Enum.GetValues(typeof(AssetStatus)))
+            {
+                <option value="@status">@status</option>
+            }
+        </InputSelect>
+    </div>
+
+    <!-- SerialNumber -->
+    <div class="mb-3">
+        <label class="form-label">شماره سریال (اختیاری)</label>
+        <InputText class="form-control" @bind-Value="vm.SerialNumber" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">ذخیره</button>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-info mt-3">@message</div>
+}
+
+
+@code
+{
+    private AssetCreateVm vm = new();
+    private List<Location> locations = new();
+    private List<Model> models = new();
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        locations = (await LocationService.GetAllAsync()).Data ?? new();
+        models = (await ModelService.GetAllAsync()).Data ?? new();
+    }
+
+    private async Task Save()
+    {
+        var asset = new Asset
+        {
+            AssetCode = vm.AssetCode,
+            ITCode = vm.ITCode,
+            ModelId = vm.ModelId,
+            LocationId = vm.LocationId,
+            SerialNumber = vm.SerialNumber,
+            Status = vm.Status,
+            CreatedAt = DateTime.UtcNow,
+            LastUpdatedAt = DateTime.UtcNow
+        };
+
+        var result = await AssetService.AddAsync(asset);
+        message = result.Message;
+
+        if (result.IsSuccess)
+            vm = new AssetCreateVm();// ریست فرم
+    }
+
+}
