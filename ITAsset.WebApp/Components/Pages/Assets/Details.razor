@@ -61,6 +61,8 @@ else
                                 @onclick="() => OpenRemoveModal(removeComponentId, removeComponentName)">
                             ❌ حذف
                         </button>
+                        <button class="btn btn-warning btn-sm"
+                                @onclick="() => OpenReplaceModal(comp.Id)">🔄 تعویض</button>
                     </td>
                 </tr>
             }
@@ -159,6 +161,66 @@ else
     <div class="modal-backdrop fade show"></div>
 }
 
+<!-- مودال تعویض قطعه -->
+@if (showReplaceModal)
+{
+    <div class="modal fade show d-block">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">تعویض قطعه</h5>
+                    <button class="btn-close" @onclick="CloseReplaceModal"></button>
+                </div>
+
+                <EditForm Model="replaceVm" OnValidSubmit="ReplaceComponent">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body row">
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">نوع قطعه</label>
+                            <InputText class="form-control" @bind-Value="replaceVm.ComponentType" />
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">کد IT</label>
+                            <InputText class="form-control" @bind-Value="replaceVm.ITCode" />
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">برند</label>
+                            <InputText class="form-control" @bind-Value="replaceVm.Brand" />
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">مدل</label>
+                            <InputText class="form-control" @bind-Value="replaceVm.Model" />
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Serial</label>
+                            <InputText class="form-control" @bind-Value="replaceVm.SerialNumber" />
+                        </div>
+
+                        <div class="col-12 mb-3">
+                            <label class="form-label">مشخصات (JSON / متن آزاد)</label>
+                            <InputTextArea class="form-control" @bind-Value="replaceVm.Specifications" />
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" type="button" @onclick="CloseReplaceModal">انصراف</button>
+                        <button class="btn btn-primary" type="submit">تعویض</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+
 @code {
     [Parameter] public int AssetId { get; set; }
 
@@ -174,6 +236,11 @@ else
     private bool showRemoveModal = false;
     private int removeComponentId;
     private string removeComponentName = string.Empty;
+
+    //تعویض قطعه
+    private bool showReplaceModal = false;
+    private int replaceOldComponentId;
+    private PcComponentCreateVm replaceVm = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -261,4 +328,59 @@ else
             message = result.Message;
         }
     }
+
+    // --- تعویض قطعه ---
+    void OpenReplaceModal(int componentId)
+    {
+        replaceOldComponentId = componentId;
+        var oldComp = components.FirstOrDefault(c => c.Id == componentId);
+        if (oldComp!=null)
+        {
+            replaceVm=new PcComponentCreateVm
+            {
+                ParentAssetId = asset!.Id,
+                ComponentType = oldComp.ComponentType,
+                ITCode = oldComp.ITCode,
+                Brand = oldComp.Brand,
+                Model = oldComp.Model,
+                SerialNumber = oldComp.SerialNumber,
+                Specifications = oldComp.Specifications
+            };
+            showReplaceModal = true;
+        }
+    }
+
+    void CloseReplaceModal() => showReplaceModal = false;
+
+    private async Task ReplaceComponent()
+    {
+        var newComponent = new PcComponent
+        {
+            ParentAssetId = replaceVm.ParentAssetId,
+            ComponentType = replaceVm.ComponentType,
+            ITCode = replaceVm.ITCode,
+            Brand = replaceVm.Brand,
+            Model = replaceVm.Model,
+            SerialNumber = replaceVm.SerialNumber,
+            Specifications = replaceVm.Specifications
+        };
+
+        var result = await PcComponentService.ReplaceAsync(replaceOldComponentId, newComponent, userId: 1);
+
+        if (result.IsSuccess)
+        {
+            // جایگزینی در لیست
+            var index = components.FindIndex(c => c.Id == replaceOldComponentId);
+            if (index >= 0)
+                components[index] = result.Data!;
+
+            showReplaceModal = false;
+            message = "قطعه با موفقیت تعویض شد";
+        }
+        else
+        {
+            message = result.Message;
+        }
+    }
+
 }
