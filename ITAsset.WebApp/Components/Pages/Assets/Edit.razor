@@ -61,10 +61,9 @@ else
         </div>
 
         <button class="btn btn-success">ذخیره</button>
-        <button class="btn btn-secondary ms-2"
-                @onclick="() => Nav.NavigateTo("/Assets")">
-            بازگشت
-        </button>
+        <button class="btn btn-secondary ms-2" @onclick="GoBack">
+    بازگشت
+</button>
     </EditForm>
 }
 
@@ -120,6 +119,11 @@ else
         var result = await AssetService.UpdateAsync(asset);
         if(result.IsSuccess)
             Nav.NavigateTo("/Assets");
+    }
+
+    void GoBack()
+    {
+        Nav.NavigateTo("/Assets");
     }
 
 }
