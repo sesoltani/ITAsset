@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
+
 namespace ITAsset.Domain.Entities;
 
 public class PcComponentChange
@@ -28,7 +29,12 @@ public class PcComponentChange
 }
 public enum ChangeType
 {
+    [Display(Name = "نصب")]
     Install = 1,
+
+    [Display(Name = "تعویض")]
     Replace = 2,
+
+    [Display(Name = "حذف")]
     Remove = 3
 }

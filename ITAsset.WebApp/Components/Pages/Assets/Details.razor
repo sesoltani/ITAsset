@@ -1,10 +1,14 @@
 ﻿@page "/Assets/Details/{AssetId:int}"
+@using ITAsset.Domain.Common
 @using ITAsset.Domain.Entities
 @using ITAsset.Domain.Interfaces
+@using ITAsset.WebApp.Helpers
 @using ITAsset.WebApp.ViewModels
+
 
 @inject IAssetService AssetService
 @inject IPcComponentService PcComponentService
+@inject IPcComponentHistoryService HistoryService
 
 <h3>جزئیات تجهیز</h3>
 
@@ -19,11 +23,11 @@ else
         <br />
         <strong>کد اموال:</strong> @asset.AssetCode
         <br />
-        <strong>مدل:</strong> @asset.!Model.Brand.Name - @asset.!Model.Name
+        <strong>مدل:</strong> @asset.Model?.Brand?.Name - @asset.Model?.Name
         <br />
         <strong>وضعیت:</strong> @asset.Status
         <br />
-        <strong>مکان:</strong> @asset.Location
+        <strong>مکان:</strong> @asset.Location?.Name
     </div>
 
     <h5>قطعات کیس</h5>
@@ -58,17 +62,114 @@ else
                     <td>@comp.SerialNumber</td>
                     <td>
                         <button class="btn btn-danger btn-sm"
-                                @onclick="() => OpenRemoveModal(removeComponentId, removeComponentName)">
+                                @onclick="() => OpenRemoveModal(comp.Id, comp.ComponentType!)">
                             ❌ حذف
                         </button>
                         <button class="btn btn-warning btn-sm"
-                                @onclick="() => OpenReplaceModal(comp.Id)">🔄 تعویض</button>
+                                @onclick="() => OpenReplaceModal(comp.Id)">
+                            🔄 تعویض
+                        </button>
                     </td>
                 </tr>
             }
         </tbody>
     </table>
 }
+
+<h5>تاریخچه قطعات</h5>
+@if (!historyList.Any())
+{
+    <div class="alert alert-secondary">
+        هنوز تغییری برای قطعات این تجهیز ثبت نشده است.
+    </div>
+}
+else
+{
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>نوع قطعه</th>
+                <th>ITCode</th>
+                <th>نوع تغییر</th>
+                <th>تاریخ</th>
+                <th>کاربر</th>
+                <th>جزئیات</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var h in historyList)
+            {
+                <tr>
+                    <td>@h.ComponentType</td>
+                    <td>@h.ITCode</td>
+                    <td>
+                        <span class="badge @ChangeTypeUiHelper.GetBadgeClass(h.ChangeType)">
+                            @h.ChangeTypeTitle
+                        </span>
+                    </td>
+                    <td>@h.ChangeDate.ToString("yyyy/MM/dd HH:mm")</td>
+                    <td>@h.ChangedBy</td>
+                    <td>
+                        <button class="btn btn-primary"
+                                @onclick="() => OpenHistoryModal(h)">
+                            مشاهده جزئیات
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<!-- مودال history -->
+<div class="modal fade @(isModalOpen ? "show d-block" : "")" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">جزئیات تغییر قطعه</h5>
+                <button type="button" class="btn-close" @onclick="CloseModal"></button>
+            </div>
+            <div class="modal-body">
+                @if (selectedHistory != null)
+                {
+                    <dl class="row">
+                        <dt class="col-sm-3">نوع قطعه</dt>
+                        <dd class="col-sm-9">@selectedHistory.ComponentType</dd>
+
+                        <dt class="col-sm-3">IT Code</dt>
+                        <dd class="col-sm-9">@selectedHistory.ITCode</dd>
+
+                        <dt class="col-sm-3">نوع تغییر</dt>
+                        <dd class="col-sm-9">@selectedHistory.ChangeType</dd>
+
+                        <dt class="col-sm-3">کاربر</dt>
+                        <dd class="col-sm-9">@selectedHistory.ChangedBy</dd>
+
+                        <dt class="col-sm-3">تاریخ</dt>
+                        <dd class="col-sm-9">@selectedHistory.ChangeDate.ToString("yyyy/MM/dd HH:mm")</dd>
+                    </dl>
+
+                    @if (!string.IsNullOrEmpty(selectedHistory.OldInfo))
+                    {
+                        <h6>اطلاعات قبلی</h6>
+                        <pre class="bg-light p-2">@selectedHistory.OldInfo</pre>
+                    }
+
+                    @if (!string.IsNullOrEmpty(selectedHistory.NewInfo))
+                    {
+                        <h6>اطلاعات جدید</h6>
+                        <pre class="bg-light p-2">@selectedHistory.NewInfo</pre>
+                    }
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModal">بستن</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 
 <!-- مودال نصب قطعه -->
 @if (showInstallModal)
@@ -126,7 +227,9 @@ else
                     <div class="modal-footer">
                         <button class="btn btn-secondary"
                                 type="button"
-                                @onclick="CloseInstallModal">انصراف</button>
+                                @onclick="CloseInstallModal">
+                            انصراف
+                        </button>
                         <button class="btn btn-primary" type="submit">ثبت</button>
                     </div>
                 </EditForm>
@@ -242,9 +345,15 @@ else
     private int replaceOldComponentId;
     private PcComponentCreateVm replaceVm = new();
 
+    //history
+    private List<PcComponentHistoryVm> historyList = new();
+    private PcComponentHistoryVm? selectedHistory;
+    private bool isModalOpen = false;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadAsset();
+        await LoadHistory(AssetId);
     }
 
     private async Task LoadAsset()
@@ -253,7 +362,9 @@ else
         if (result.IsSuccess)
         {
             asset = result.Data;
-            components = asset?.PcComponents.ToList() ?? new List<PcComponent>();
+            // components = asset?.PcComponents.ToList() ?? new List<PcComponent>();
+            var compResult = await PcComponentService.GetByAssetIdAsync(AssetId);
+            components = compResult.Data ?? new List<PcComponent>();
         }
         else
         {
@@ -291,6 +402,7 @@ else
         if (result.IsSuccess)
         {
             components.Add(result.Data!);
+            await LoadHistory(AssetId);
             showInstallModal = false;
             message = "قطعه با موفقیت نصب شد";
         }
@@ -320,6 +432,7 @@ else
             if (compToRemove != null)
                 components.Remove(compToRemove);
 
+            await LoadHistory(AssetId);
             showRemoveModal = false;
             message = "قطعه با موفقیت حذف شد";
         }
@@ -334,9 +447,9 @@ else
     {
         replaceOldComponentId = componentId;
         var oldComp = components.FirstOrDefault(c => c.Id == componentId);
-        if (oldComp!=null)
+        if (oldComp != null)
         {
-            replaceVm=new PcComponentCreateVm
+            replaceVm = new PcComponentCreateVm
             {
                 ParentAssetId = asset!.Id,
                 ComponentType = oldComp.ComponentType,
@@ -374,6 +487,7 @@ else
             if (index >= 0)
                 components[index] = result.Data!;
 
+            await LoadHistory(AssetId);
             showReplaceModal = false;
             message = "قطعه با موفقیت تعویض شد";
         }
@@ -381,6 +495,37 @@ else
         {
             message = result.Message;
         }
+    }
+
+    //history
+    private async Task LoadHistory(int assetId)
+    {
+        var result = await HistoryService.GetByAssetIdAsync(assetId);
+        if (result.IsSuccess && result.Data != null)
+        {
+            historyList = result.Data.Select(h => new PcComponentHistoryVm
+            {
+                ComponentType = h.PcComponent?.ComponentType ?? "-",
+                ITCode = h.PcComponent?.ITCode,
+                OldInfo = h.OldComponentInfo,
+                NewInfo = h.NewComponentInfo,
+                ChangeType = h.ChangeType,
+                ChangedBy = h.ChangedByUser?.UserName ?? "-",
+                ChangeDate = h.ChangeDate
+            }).ToList();
+        }
+    }
+
+    private void OpenHistoryModal(PcComponentHistoryVm h)
+    {
+        selectedHistory = h;
+        isModalOpen = true;
+    }
+
+    private void CloseModal()
+    {
+        isModalOpen = false;
+        selectedHistory = null;
     }
 
 }
