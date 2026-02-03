@@ -9,6 +9,7 @@
 @inject IAssetService AssetService
 @inject IPcComponentService PcComponentService
 @inject IPcComponentHistoryService HistoryService
+@inject IAssetAssignmentHistoryService AssignmentHistoryService
 
 <h3>جزئیات تجهیز</h3>
 
@@ -29,6 +30,43 @@ else
         <br />
         <strong>مکان:</strong> @asset.Location?.Name
     </div>
+
+    @if (!assignmentTimeline.Any())
+    {
+        <div class="alert alert-secondary">
+            هنوز سابقه تحویل برای این تجهیز ثبت نشده است.
+        </div>
+    }
+    else
+    {
+        <h5 class="mt-4">تاریخچه تحویل تجهیز</h5>
+
+        <ul class="timeline">
+            @foreach (var item in assignmentTimeline)
+            {
+                <li>
+                    <span class="timeline-date">
+                        @item.Date.ToString("yyyy/MM/dd HH:mm")
+                    </span>
+
+                    <div class="timeline-content">
+                        <strong>@item.Action</strong>
+                        <br />
+                        <span>کارمند: @item.EmployeeName</span><br />
+                        <span>وضعیت: @item.Condition</span><br />
+                        <span class="text-muted">توسط: @item.ChangedBy</span>
+
+                        @if (!string.IsNullOrEmpty(item.Note))
+                        {
+                            <div class="text-muted small mt-1">
+                                📝 @item.Note
+                            </div>
+                        }
+                    </div>
+                </li>
+            }
+        </ul>
+    }
 
     <h5>قطعات کیس</h5>
     <button class="btn btn-success mb-2" @onclick="OpenInstallModal">
@@ -85,40 +123,44 @@ else
 }
 else
 {
-    <table class="table table-bordered table-striped">
-        <thead>
-            <tr>
-                <th>نوع قطعه</th>
-                <th>ITCode</th>
-                <th>نوع تغییر</th>
-                <th>تاریخ</th>
-                <th>کاربر</th>
-                <th>جزئیات</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var h in historyList)
-            {
-                <tr>
-                    <td>@h.ComponentType</td>
-                    <td>@h.ITCode</td>
-                    <td>
+
+    <div class="timeline">
+        @foreach (var h in historyList)
+        {
+            <div class="timeline-item">
+                <div class="timeline-dot @ChangeTypeUiHelper.GetBadgeClass(h.ChangeType)"></div>
+
+                <div class="timeline-content">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
                         <span class="badge @ChangeTypeUiHelper.GetBadgeClass(h.ChangeType)">
                             @h.ChangeTypeTitle
                         </span>
-                    </td>
-                    <td>@h.ChangeDate.ToString("yyyy/MM/dd HH:mm")</td>
-                    <td>@h.ChangedBy</td>
-                    <td>
-                        <button class="btn btn-primary"
-                                @onclick="() => OpenHistoryModal(h)">
-                            مشاهده جزئیات
-                        </button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+
+                        <small class="text-muted">
+                            @h.ChangeDate.ToString("yyyy/MM/dd HH:mm")
+                        </small>
+                    </div>
+
+                    <div>
+                        <strong>@h.ComponentType</strong>
+                        @if (!string.IsNullOrEmpty(h.ITCode))
+                        {
+                            <span class="text-muted">(IT: @h.ITCode)</span>
+                        }
+                    </div>
+
+                    <div class="text-muted small">
+                        توسط @h.ChangedBy
+                    </div>
+
+                    <button class="btn btn-sm btn-outline-primary mt-2"
+                            @onclick="() => OpenHistoryModal(h)">
+                        مشاهده جزئیات
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
 }
 
 <!-- مودال history -->
@@ -350,10 +392,13 @@ else
     private PcComponentHistoryVm? selectedHistory;
     private bool isModalOpen = false;
 
+    private List<AssignmentTimelineVm> assignmentTimeline = new();
+
     protected override async Task OnInitializedAsync()
     {
         await LoadAsset();
         await LoadHistory(AssetId);
+        await LoadAssignmentTimeline();
     }
 
     private async Task LoadAsset()
@@ -526,6 +571,26 @@ else
     {
         isModalOpen = false;
         selectedHistory = null;
+    }
+
+    private async Task LoadAssignmentTimeline()
+    {
+        var result = await AssignmentHistoryService.GetByAssetIdAsync(AssetId);
+
+        if (result.IsSuccess && result.Data != null)
+        {
+            assignmentTimeline = result.Data.Select(h => new AssignmentTimelineVm
+            {
+                Action = h.Action == AssignmentAction.Assign ? "تحویل تجهیز" : "عودت تجهیز",
+                EmployeeName = h.Employee != null
+                    ? $"{h.Employee.FirstName} {h.Employee.LastName}"
+                    : "-",
+                Condition = h.Condition?.ToString() ?? "-",
+                ChangedBy = h.ChangedByUser?.UserName ?? "-",
+                Date = h.ChangeDate,
+                Note = h.Note
+            }).ToList();
+        }
     }
 
 }

@@ -23,6 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
 
     public DbSet<AssetAssignment> AssetAssignments => Set<AssetAssignment>();
+    public DbSet<AssetAssignmentHistory> AssetAssignmentHistories => Set<AssetAssignmentHistory>();
     public DbSet<MaintenanceRecord> MaintenanceRecords => Set<MaintenanceRecord>();
     public DbSet<PcComponentChange> PcComponentChanges => Set<PcComponentChange>();
 
