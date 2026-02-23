@@ -1,4 +1,5 @@
 ﻿@page "/Assets"
+@using ITAsset.Domain.Common
 @using ITAsset.Domain.Entities
 @using ITAsset.Domain.Interfaces
 
@@ -32,7 +33,16 @@ else
                     <td>@a.ITCode</td>
                     <td>@a.Model?.Brand?.Name - @a.Model?.Name</td>
                     <td>@a.Location?.Name</td>
-                    <td>@a.Status</td>
+                    <td>
+                        <span class="badge
+                                      @(a.Status == AssetStatus.Available ? "bg-success" :
+                                      a.Status == AssetStatus.Assigned ? "bg-warning" :
+                                      a.Status == AssetStatus.InRepair ? "bg-info" :
+                                      "bg-danger")">
+
+                            @a.Status.GetDisplayName()
+                        </span>
+                    </td>
                     <td>
                         <button class="btn btn-sm btn-warning"
                                 @onclick="() => Edit(a.Id)">

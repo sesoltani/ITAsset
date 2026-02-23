@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using ITAsset.Domain.Common;
+using System.ComponentModel.DataAnnotations;
 
 namespace ITAsset.Domain.Entities;
 
@@ -24,7 +25,7 @@ public class Asset
     public decimal? PurchasePrice { get; set; }
     public DateTime? WarrantyExpiryDate { get; set; }
 
-    public AssetStatus Status { get; set; } = AssetStatus.InStock;
+    public AssetStatus Status { get; set; } = AssetStatus.Available;
 
     // محل استقرار فعلی تجهیز
     public int? LocationId { get; set; }
@@ -45,11 +46,4 @@ public class Asset
     public ICollection<AssetAssignment> AssetAssignments { get; set; } = new List<AssetAssignment>();
     public ICollection<MaintenanceRecord> MaintenanceRecords { get; set; } = new List<MaintenanceRecord>();
     #endregion
-}
-public enum AssetStatus
-{
-    InStock = 1,     // انبار
-    InUse = 2,       // در حال استفاده
-    NeedRepair = 3,  // نیاز به تعمیر
-    Scrapped = 4     // اسقاط
 }

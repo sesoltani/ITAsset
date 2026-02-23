@@ -19,6 +19,10 @@ public class AssetAssignmentHistory
     [StringLength(500)]
     public string? Note { get; set; }
 
+    public AssetCondition? ConditionOnReturn { get; set; }  // وضعیت هنگام بازگشت
+    public int? PerformedByUserId { get; set; }            // کاربری که عملیات را انجام داده
+    public string? Description { get; set; }              // توضیح (مثلاً "عودت دارایی از کارمند")
+
     #region Navigation
     public Asset? Asset { get; set; }
     public Employee? Employee { get; set; }

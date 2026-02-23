@@ -1,5 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using ITAsset.Domain.Entities;
+using ITAsset.Domain.Common;
 
 namespace ITAsset.WebApp.ViewModels;
 

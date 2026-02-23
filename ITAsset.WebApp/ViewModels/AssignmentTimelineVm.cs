@@ -2,6 +2,7 @@
 
 public class AssignmentTimelineVm
 {
+    public int Id { get; set; }
     public string Action { get; set; } = "";
     public string EmployeeName { get; set; } = "-";
     public string Condition { get; set; } = "-";

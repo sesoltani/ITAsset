@@ -8,6 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\ITAsset.CoreBusiness\ITAsset.Domain.csproj" />
     <ProjectReference Include="..\ITAsset.Infrastructure\ITAsset.Data.csproj" />
   </ItemGroup>

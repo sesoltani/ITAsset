@@ -15,4 +15,7 @@ public interface IAssetAssignmentService
         int assignmentId,
         int performedByUserId,
         AssetCondition conditionOnReturn);
+
+    Task<AssetAssignment?> GetActiveAssignmentAsync(int assetId);
+
 }

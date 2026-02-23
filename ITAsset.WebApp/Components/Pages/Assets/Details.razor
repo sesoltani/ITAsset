@@ -1,4 +1,5 @@
 ﻿@page "/Assets/Details/{AssetId:int}"
+@using ITAsset.Data.Services
 @using ITAsset.Domain.Common
 @using ITAsset.Domain.Entities
 @using ITAsset.Domain.Interfaces
@@ -10,6 +11,9 @@
 @inject IPcComponentService PcComponentService
 @inject IPcComponentHistoryService HistoryService
 @inject IAssetAssignmentHistoryService AssignmentHistoryService
+@inject IAssetAssignmentService AssetAssignmentService
+@inject IEmployeeService EmployeeService
+
 
 <h3>جزئیات تجهیز</h3>
 
@@ -30,6 +34,36 @@ else
         <br />
         <strong>مکان:</strong> @asset.Location?.Name
     </div>
+
+    @if (activeAssignment == null)
+    {
+        <button class="btn btn-primary mb-3" @onclick="OpenAssignModal">
+            📤 تحویل تجهیز
+        </button>
+    }
+    else
+    {
+        <div class="alert alert-warning mb-3">
+            <strong>⛔ این تجهیز در حال حاضر تحویل شده است</strong><br />
+            👤 کارمند: @activeAssignment.EmployeeName<br />
+            🕒 از تاریخ: @activeAssignment.AssignedDate.ToString("yyyy/MM/dd")<br />
+            🧾 وضعیت هنگام تحویل: @activeAssignment.ConditionOnAssign
+        </div>
+
+        <button class="btn btn-outline-success"
+                @onclick="() => OpenReturnModal(activeAssignment.AssignmentId)">
+            📥 عودت تجهیز
+        </button>
+    }
+
+    @if (asset != null && assignmentTimeline.Any(t => t.Action == "تحویل تجهیز"))
+    {
+        <button class="btn btn-success" @onclick="async () => await ReturnAsset()">
+
+            📥 بازگرداندن تجهیز
+        </button>
+    }
+
 
     @if (!assignmentTimeline.Any())
     {
@@ -365,6 +399,101 @@ else
     <div class="modal-backdrop fade show"></div>
 }
 
+<!-- مودال تحویل تجهیز -->
+@if (showAssignModal)
+{
+    <div class="modal fade show d-block">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">تحویل تجهیز به کارمند</h5>
+                    <button class="btn-close" @onclick="CloseAssignModal"></button>
+                </div>
+                <EditForm Model="assignVm" OnValidSubmit="AssignAsset">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">کارمند</label>
+                            <InputSelect class="form-control" @bind-Value="assignVm.EmployeeId">
+                                <option value="">انتخاب کارمند</option>
+                                @foreach (var emp in employees)
+                                {
+                                    <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">وضعیت تجهیز هنگام تحویل</label>
+                            <InputSelect class="form-control" @bind-Value="assignVm.ConditionOnAssign">
+                                @foreach (AssetCondition c in Enum.GetValues(typeof(AssetCondition)))
+                                {
+                                    <option value="@c">@c</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">تاریخ بازگشت احتمالی</label>
+                            <InputDate class="form-control" @bind-Value="assignVm.ExpectedReturnDate" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">یادداشت</label>
+                            <InputTextArea class="form-control" @bind-Value="assignVm.Note" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" type="button" @onclick="CloseAssignModal">انصراف</button>
+                        <button class="btn btn-primary" type="submit">ثبت تحویل</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- مودال مرجوع کردن تجهیز -->
+@if (showReturnModal)
+{
+    <div class="modal fade show d-block">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">عودت تجهیز</h5>
+                    <button class="btn-close" @onclick="CloseReturnModal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">وضعیت تجهیز هنگام عودت</label>
+                        <InputSelect class="form-control" @bind-Value="returnCondition">
+                            @foreach (AssetCondition c in Enum.GetValues(typeof(AssetCondition)))
+                            {
+                                <option value="@c">@c</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseReturnModal">
+                        انصراف
+                    </button>
+                    <button class="btn btn-success" @onclick="ReturnAsset">
+                        ثبت عودت
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+
 
 @code {
     [Parameter] public int AssetId { get; set; }
@@ -393,12 +522,29 @@ else
     private bool isModalOpen = false;
 
     private List<AssignmentTimelineVm> assignmentTimeline = new();
+    private bool showAssignModal = false;
+    private AssetAssignVm assignVm = new();
+    private List<Employee> employees = new();
+
+    private bool showReturnModal = false;
+    private int returnAssignmentId;
+    private AssetCondition returnCondition;
+    private AssetReturnVm returnVm = new();
+
+    private ActiveAssignmentVm? activeAssignment;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadAsset();
         await LoadHistory(AssetId);
         await LoadAssignmentTimeline();
+        await LoadEmployees();
+        await LoadActiveAssignment();
+    }
+
+    private async Task LoadEmployees()
+    {
+        employees = await EmployeeService.GetAllAsync();
     }
 
     private async Task LoadAsset()
@@ -497,8 +643,8 @@ else
             replaceVm = new PcComponentCreateVm
             {
                 ParentAssetId = asset!.Id,
-                ComponentType = oldComp.ComponentType,
-                ITCode = oldComp.ITCode,
+                ComponentType = oldComp.ComponentType!,
+                ITCode = oldComp.ITCode!,
                 Brand = oldComp.Brand,
                 Model = oldComp.Model,
                 SerialNumber = oldComp.SerialNumber,
@@ -590,6 +736,82 @@ else
                 Date = h.ChangeDate,
                 Note = h.Note
             }).ToList();
+        }
+    }
+
+    void OpenAssignModal()
+    {
+        assignVm = new AssetAssignVm
+        {
+            AssetId = asset!.Id
+        };
+        showAssignModal = true;
+    }
+
+    void CloseAssignModal() => showAssignModal = false;
+
+    private async Task AssignAsset()
+    {
+        // فرض می‌کنیم شناسه کاربری که عملیات را انجام می‌دهد 1 است
+        int currentUserId = 1;
+
+        await AssetAssignmentService.AssignAsync(
+            assetId: assignVm.AssetId,
+            employeeId: assignVm.EmployeeId,
+            assignedByUserId: currentUserId,
+            conditionOnAssign: assignVm.ConditionOnAssign,
+            expectedReturnDate: assignVm.ExpectedReturnDate
+        );
+
+        await LoadAssignmentTimeline(); // بروزرسانی Timeline
+        showAssignModal = false;
+        message = "تجهیز با موفقیت تحویل شد";
+    }
+
+    void OpenReturnModal(int assignmentId)
+    {
+        returnAssignmentId = assignmentId;
+        returnCondition = AssetCondition.Good; // مقدار پیش‌فرض
+        showReturnModal = true;
+    }
+
+
+    void CloseReturnModal() => showReturnModal = false;
+
+    private async Task ReturnAsset()
+    {
+        await AssetAssignmentService.ReturnAsync(
+            returnAssignmentId,
+            performedByUserId: 1,
+            returnCondition
+        );
+
+        showReturnModal = false;
+
+        await LoadAssignmentTimeline();
+        await LoadActiveAssignment();
+
+        message = "تجهیز با موفقیت عودت داده شد";
+    }
+
+
+    private async Task LoadActiveAssignment()
+    {
+        var assignment = await AssetAssignmentService.GetActiveAssignmentAsync(AssetId);
+
+        if (assignment != null)
+        {
+            activeAssignment = new ActiveAssignmentVm
+            {
+                AssignmentId = assignment.Id,
+                EmployeeName = $"{assignment.Employee?.FirstName} {assignment.Employee?.LastName}",
+                AssignedDate = assignment.AssignedDate,
+                ConditionOnAssign = assignment.ConditionOnAssign
+            };
+        }
+        else
+        {
+            activeAssignment = null;
         }
     }
 

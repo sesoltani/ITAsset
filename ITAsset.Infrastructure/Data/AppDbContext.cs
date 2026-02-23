@@ -39,6 +39,17 @@ public class AppDbContext : DbContext
         ConfigureLocation(modelBuilder);
         ConfigureAssignments(modelBuilder);
         ConfigurePcComponent(modelBuilder);
+        ConfigureAssignmentHistory(modelBuilder);
+        ConfigureMaintenance(modelBuilder);
+    }
+
+    private void ConfigureMaintenance(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<MaintenanceRecord>(entity =>
+        {
+            entity.Property(x => x.Cost)
+                .HasColumnType("decimal(18,2)");
+        });
     }
 
     private void ConfigureAsset(ModelBuilder modelBuilder)
@@ -67,6 +78,10 @@ public class AppDbContext : DbContext
 
             entity.Property(a => a.LastUpdatedAt)
                 .HasDefaultValueSql("GETUTCDATE()");
+
+            // اضافه کردن precision برای PurchasePrice
+            entity.Property(a => a.PurchasePrice)
+                .HasColumnType("decimal(18,2)"); // 18 رقم کل، 2 رقم اعشار
         });
     }
 
@@ -117,7 +132,8 @@ public class AppDbContext : DbContext
         {
             entity.HasOne(x => x.Asset)
                 .WithMany(x => x.AssetAssignments)
-                .HasForeignKey(x => x.AssetId);
+                .HasForeignKey(x => x.AssetId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(x => x.Employee)
                 .WithMany(x => x.AssetAssignments)
@@ -127,6 +143,8 @@ public class AppDbContext : DbContext
                 .WithMany(x => x.AssetAssignments)
                 .HasForeignKey(x => x.AssignedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.AssetId, x.ActualReturnDate });
+
         });
     }
     private void ConfigurePcComponent(ModelBuilder modelBuilder)
@@ -152,6 +170,30 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
+
+    private void ConfigureAssignmentHistory(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<AssetAssignmentHistory>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.HasOne(x => x.Asset)
+                .WithMany()
+                .HasForeignKey(x => x.AssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Employee)
+                .WithMany()
+                .HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(x => x.ChangedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.ChangedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
 
 }
 
