@@ -17,7 +17,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
-builder.Services.AddSingleton<InMemorySeed>();
+//builder.Services.AddSingleton<InMemorySeed>();
 builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IPcComponentService, PcComponentService>();
 builder.Services.AddScoped<ILocationService, LocationService>();
@@ -25,6 +25,7 @@ builder.Services.AddScoped<IModelService, ModelService>();
 builder.Services.AddScoped<IPcComponentHistoryService, PcComponentHistoryService>();
 builder.Services.AddScoped<IAssetAssignmentService, AssetAssignmentService>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
+builder.Services.AddScoped<IBrandService, BrandService>();
 
 
 

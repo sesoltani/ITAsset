@@ -1,0 +1,202 @@
+﻿@page "/models"
+@using ITAsset.Domain.Interfaces
+@using ITAsset.Domain.Entities
+@inject IModelService ModelService
+@inject IBrandService BrandService
+@inject NavigationManager Nav
+
+<h3>مدیریت مدل‌های تجهیزات</h3>
+
+<button class="btn btn-primary mb-3" @onclick="OpenCreateModal">
+    ثبت مدل جدید
+</button>
+
+@if (models == null)
+{
+    <div class="alert alert-info">در حال بارگذاری...</div>
+}
+else if (!models.Any())
+{
+    <div class="alert alert-warning">هیچ مدلی ثبت نشده است</div>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>برند</th>
+                <th>نام مدل</th>
+                <th>مشخصات</th>
+                <th>تعداد تجهیزات</th>
+                <th>عملیات</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var model in models)
+            {
+                <tr>
+                    <td>@model.Brand?.Name</td>
+                    <td>@model.Name</td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(model.Specifications))
+                        {
+                            <pre class="mb-0 small">@model.Specifications</pre>
+                        }
+                    </td>
+                    <td>@model.Assets.Count</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning"
+                                @onclick="() => OpenEditModal(model.Id)">
+                            ویرایش
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<!-- مودال ثبت/ویرایش مدل -->
+@if (showModal)
+{
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(isEdit ? "ویرایش مدل" : "ثبت مدل جدید")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+
+                <EditForm Model="model" OnValidSubmit="Save">
+                    <DataAnnotationsValidator />
+
+                    <div class="modal-body">
+                        <ValidationSummary class="text-danger" />
+
+                        <div class="mb-3">
+                            <label class="form-label">برند <span class="text-danger">*</span></label>
+                            <InputSelect class="form-select" @bind-Value="model.BrandId">
+                                <option value="0">انتخاب برند</option>
+                                @foreach (var brand in brands)
+                                {
+                                    <option value="@brand.Id">@brand.Name</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => model.BrandId)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">نام مدل <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="model.Name" />
+                            <ValidationMessage For="@(() => model.Name)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">مشخصات (JSON)</label>
+                            <InputTextArea class="form-control" @bind-Value="model.Specifications" rows="3" />
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">انصراف</button>
+                        <button type="submit" class="btn btn-primary">ذخیره</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-info mt-3">@message</div>
+}
+
+@code {
+    private List<Model>? models;
+    private List<Brand> brands = new();
+
+    // مودال
+    private bool showModal = false;
+    private bool isEdit = false;
+    private Model model = new();
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        await LoadBrands();
+    }
+
+    private async Task LoadData()
+    {
+        var result = await ModelService.GetAllAsync();
+        if (result.IsSuccess)
+            models = result.Data;
+    }
+
+    private async Task LoadBrands()
+    {
+        // اینجا باید سرویس Brand رو تزریق کنی
+        // فعلاً از یه سرویس موقت استفاده می‌کنیم
+        var result = await BrandService.GetAllAsync();  
+        if (result.IsSuccess && result.Data != null)
+            brands = result.Data;
+    }
+
+    private void OpenCreateModal()
+    {
+        model = new Model();
+        isEdit = false;
+        showModal = true;
+    }
+
+    private async Task OpenEditModal(int id)
+    {
+        var result = await ModelService.GetByIdAsync(id);
+        if (result.IsSuccess && result.Data != null)
+        {
+            model = result.Data;
+            isEdit = true;
+            showModal = true;
+        }
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        model = new Model();
+    }
+
+    private async Task Save()
+    {
+        if (isEdit)
+        {
+            var result = await ModelService.UpdateAsync(model);
+            if (result.IsSuccess)
+            {
+                await LoadData();
+                CloseModal();
+            }
+            else
+            {
+                message = result.Message;
+            }
+        }
+        else
+        {
+            var result = await ModelService.AddAsync(model);
+            if (result.IsSuccess)
+            {
+                await LoadData();
+                CloseModal();
+            }
+            else
+            {
+                message = result.Message;
+            }
+        }
+    }
+}

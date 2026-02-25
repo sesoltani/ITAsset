@@ -1,4 +1,5 @@
-﻿using ITAsset.Domain.Entities;
+﻿using ITAsset.Data.Data.Seed;
+using ITAsset.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace ITAsset.Data.Data;
@@ -41,6 +42,9 @@ public class AppDbContext : DbContext
         ConfigurePcComponent(modelBuilder);
         ConfigureAssignmentHistory(modelBuilder);
         ConfigureMaintenance(modelBuilder);
+
+        //data seeder
+        DataSeeder.Seed(modelBuilder);
     }
 
     private void ConfigureMaintenance(ModelBuilder modelBuilder)
